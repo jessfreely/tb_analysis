@@ -1,6 +1,7 @@
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
+library(patchwork)
 
 # 1. Read the file
 raw_tb_data <- read_csv("tb_analysis.csv")
@@ -55,3 +56,47 @@ ggplot(data = national_trends, aes(x = Year, y = national_rate)) +
   ) +
   theme_minimal(base_size = 12) 
 
+# 5. Show which states are driving the national trends
+state_trends <- clean_tb_data %>%
+  group_by(State) %>%
+  summarize(
+    avg_cases = mean(Cases, na.rm = TRUE),
+    avg_rate  = mean(incidence_rate, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(avg_rate)) %>%
+  slice_head(n = 10) 
+# Grab the top 10 highest-burden states
+
+# 6. Bar Charts
+plot_rates <- ggplot(state_trends, aes(x = reorder(State, avg_rate), y = avg_rate)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() + 
+  labs(
+    title = "Top 10 States with Highest Average TB Incidence Rates",
+    x = "State",
+    y = "Average Incidence Rate per 100,000"
+  ) +
+  theme_minimal()
+
+plot_cases <- ggplot(state_trends, aes(x = reorder(State, avg_cases), y = avg_cases)) +
+  geom_col(fill = "darkred") +
+  coord_flip() +
+  labs(
+    title = "Highest Disease Burden",
+    subtitle = "Top 10 States by Avg Annual Cases",
+    x = "", 
+    # Hide the state label on the second plot to save space
+    y = "Annual Case Count"
+  ) +
+  theme_minimal(base_size = 11)
+
+# Display side-by-side
+combined_plot <- plot_rates + plot_cases + 
+  plot_annotation(
+    title = "Comparing relative transmission risk against absolute case volume(1993-2023)",
+    theme = theme(plot.title = element_text(face = "bold", size = 14))
+  )
+
+# Display the combined plot
+combined_plot
